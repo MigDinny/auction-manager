@@ -1,6 +1,6 @@
 CREATE TABLE auctions (
-	id			 INTEGER,
-	article_id		 BIGINT NOT NULL,
+	id			 SERIAL,
+	article_id		 BIGINT NOT NULL UNIQUE,
 	title		 VARCHAR(512) NOT NULL,
 	price		 INTEGER NOT NULL,
 	end_date		 TIMESTAMP NOT NULL,
@@ -12,16 +12,16 @@ CREATE TABLE auctions (
 );
 
 CREATE TABLE users (
-	id	 INTEGER,
-	username VARCHAR(32) NOT NULL,
-	password VARCHAR(32) NOT NULL,
-	email	 VARCHAR(64) NOT NULL,
+	id	 SERIAL,
+	username VARCHAR(32) NOT NULL UNIQUE,
+	password VARCHAR(32) NOT NULL ,
+	email	 VARCHAR(64) NOT NULL UNIQUE,
 	token	 VARCHAR(32) UNIQUE,
 	PRIMARY KEY(id)
 );
 
 CREATE TABLE notifications (
-	id	 INTEGER,
+	id	 SERIAL,
 	text	 VARCHAR(512),
 	time_stamp TIMESTAMP NOT NULL,
 	users_id	 INTEGER NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE notifications (
 );
 
 CREATE TABLE messages (
-	id		 INTEGER,
+	id		 SERIAL,
 	text	 CHAR(255),
 	time_stamp	 TIMESTAMP NOT NULL,
 	auctions_id INTEGER NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE messages (
 );
 
 CREATE TABLE biddings (
-	id		 INTEGER,
+	id		 SERIAL,
 	price	 INTEGER NOT NULL,
 	time_stamp	 TIMESTAMP NOT NULL,
 	auctions_id INTEGER NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE biddings (
 );
 
 CREATE TABLE descriptions (
-	id		 INTEGER,
+	id		 SERIAL,
 	text	 VARCHAR(1024) NOT NULL,
 	time_stamp	 TIMESTAMP NOT NULL,
 	auctions_id INTEGER NOT NULL,
