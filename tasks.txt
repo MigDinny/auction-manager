@@ -1,0 +1,29 @@
+Meta 1 - semana 12 abril
+
+X	- desenhar diagrama ER
+X	- desenhar tabelas no ONDA
+	- escolher tecnologias a ser usadas
+	- fazer setup ao projeto
+	- fazer ppt
+
+name: Auction Manager
+description: Manages auctions and bids. Allows some communication features like messages and notifications.
+main ops:
+	- signup/signin users
+	- create auction / bid auction
+	- send messages / broadcast notifications
+conflicts:
+	- while bidding (the first user can bid higher and the second user bids and stays the highest bidder)
+	- any other writings on an auction
+	- encapsulate all main operations
+
+core tech: Python w/ Flask -> for RESTful API and http requests,
+	 psycopg2.sql to communicate with the database,
+	PostgreSQL as DBMS
+
+plan:
+	- A develops a() function (associated to a specific request)
+	- B develops b() function
+	- A reviews and improves B function (and vice-versa)
+	- 50% of functions to each other
+	- timeline not defined
