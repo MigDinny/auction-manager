@@ -50,7 +50,7 @@ def user():
             return error(1)
 
         try:
-            sql.execute("INSERT INTO users (username, email, password) VALUES(%s, %s, %s) RETURNING id;", (username, email, password))
+            sql.execute("INSERT INTO users (username, email, password) VALUES(%s, %s, MD5(%s)) RETURNING id;", (username, email, password))
 
         except psycopg2.Error as e:
             conn.rollback()
@@ -62,7 +62,26 @@ def user():
         return {'userId': id}
        
     elif request.method == 'PUT':
-        return {'authToken': 'ab312ef214aabc23412'}
+
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if (username is None or password is None):
+            return error(1)
+
+        try:
+            sql.execute("UPDATE users SET token=MD5(random()::text) WHERE username=%s AND password=MD5(%s) RETURNING token;", (username, password))
+
+            token = sql.fetchone()
+
+            if (token is None):
+                return error(3)
+            
+        except psycopg2.Error as e:
+            conn.rollback()
+            return error(e.pgcode)
+
+        return {'authToken': token[0]}
         
     else:
         return error(1)
