@@ -2,5 +2,7 @@ NOTES:
 	- psycopg is a Python DB API compliant library, therefore, when .execute() is called, a "begin transaction;" is called
 		and awaits for .commit() or .rollback(). in this case, conn.autocommit = True
 
+	- all queries, regardless of their atomicity, are encapsulated in a transaction, 
+
 Tasks:
 	- psycopg always begins transactions, how not to begin transaction in a SELECT?

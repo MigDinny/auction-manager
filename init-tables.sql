@@ -49,8 +49,7 @@ CREATE TABLE biddings (
 CREATE TABLE descriptions (
 	id		 SERIAL,
 	text	 VARCHAR(1024) NOT NULL,
-	time_stamp	 TIMESTAMP NOT NULL,
-	auctions_id INTEGER NOT NULL,
+	auctions_id INTEGER,
 	PRIMARY KEY(id)
 );
 

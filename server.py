@@ -8,9 +8,10 @@ import psycopg2
 # 1: invalid param / bad request
 # 2: internal error
 # 3: auth - access denied
+# 4: token not valid
 # 23505: constraint UNIQUE violation
-def error(no):
-    return {'error': no}
+def error(no, text="N/A"):
+    return {'error': no, 'text': text}
 
 
 
@@ -34,8 +35,13 @@ POST -> signup
     params: username, password, email
     returns: userid
     error: if user/email already exists 
-    transaction: needed becase we need rollback
+    transaction: not needed, operation is atomic
     
+PUT -> login
+    params: username, password
+    returns: auth token
+    error: if access is denied
+    transaction: not needed, operation is atomic
 """
 @api.route("/dbproj/user", methods=['PUT', 'POST'])
 def user():
@@ -79,14 +85,55 @@ def user():
             
         except psycopg2.Error as e:
             conn.rollback()
-            return error(e.pgcode)
+            return error(e.pgcode, e.pgerror)
 
         return {'authToken': token[0]}
         
     else:
         return error(1)
         
+"""
+POST -> create auction
+    params: token, article_id, price, title, description, end_timestamp
+"""
+@api.route("/dbproj/leilao", methods=['POST'])
+def createAuction():
 
+    token = request.form.get('token')
+    article_id = request.form.get('artigoId')
+    price = request.form.get('precoMinimo')
+    title = request.form.get('titulo')
+    description = request.form.get('descricao')
+    end_date = request.form.get('end_date')
+
+    if (token is None or article_id is None or price is None or title is None or description is None or end_date is None):
+        return error(1)
+
+    try:
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s OR token=%s;", (token, token))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        # insert description entry first
+        sql.execute("INSERT INTO descriptions(text) VALUES (%s) RETURNING id;", (description,))
+
+        description_id = sql.fetchone()
+
+        sql.execute("INSERT INTO auctions(article_id, title, price, end_date, last_description_id, seller_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;", (article_id, title, price, end_date, description_id, id))
+
+        auction_id = sql.fetchone()[0]
+
+        sql.execute("UPDATE descriptions SET auctions_id=%s WHERE id=%s;", (auction_id, description_id));
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        return error(e.pgcode)
+    
+    return {'leilaoId': auction_id}
 
 ########## RUN SERVER #########
 
