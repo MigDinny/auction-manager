@@ -127,7 +127,7 @@ def createAuction():
 
         auction_id = sql.fetchone()[0]
 
-        sql.execute("UPDATE descriptions SET auctions_id=%s WHERE id=%s;", (auction_id, description_id));
+        sql.execute("UPDATE descriptions SET auctions_id=%s WHERE id=%s;", (auction_id, description_id))
 
     except psycopg2.Error as e:
         conn.rollback()
