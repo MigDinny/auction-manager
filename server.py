@@ -1,5 +1,6 @@
 from flask import Flask, request, json
 import psycopg2
+import datetime
 
 ######### CONSTANTS & UTILS ########
 
@@ -9,6 +10,7 @@ import psycopg2
 # 2: internal error
 # 3: auth - access denied
 # 4: token not valid
+# 5: no active auctions
 # 23505: constraint UNIQUE violation
 def error(no, text="N/A"):
     return {'error': no, 'text': text}
@@ -134,6 +136,29 @@ def createAuction():
         return error(e.pgcode)
     
     return {'leilaoId': auction_id}
+
+
+@api.route("/dbproj/leiloes", methods=['GET'])
+def getAuctions():
+    token = request.form.get('token')
+
+    if (token is None):
+        return error(1)
+    try:
+        ts = datetime.datetime.now()
+        tsF = ts.strftime("%Y-%m-%d %H:%M:%S")
+
+        sql.execute("SELECT * FROM auctions WHERE timestamp >= %s", (tsF))
+
+        auctions = sql.fetchone()
+
+        if (auctions is None):
+            return error(5)
+
+    return {'leilões': auctions}
+
+
+
 
 ########## RUN SERVER #########
 
