@@ -275,6 +275,107 @@ def queryAuctions(query):
     
     return jsonify(r)
 
+
+"""
+GET -> get details from a auction
+"""
+@api.route("/dbproj/leilao/<leilaoId>", methods=['GET'])
+def getDetails(leilaoId):
+
+    token = request.args.get('token')
+    
+    if (leilaoId is None or token is None):
+        return error(1)
+    
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        sql.execute("SELECT descriptions.text FROM auctions, descriptions WHERE auctions.id = %s and auctions.last_description_id = descriptions.id;", (leilaoId, ))       # current description
+
+        description = sql.fetchone()
+
+        sql.execute("SELECT users_id, time_stamp, text FROM messages WHERE auctions_id = %s;", (leilaoId, ))                   # messages history
+
+        messages = sql.fetchall()
+        
+        sql.execute("SELECT users_id, time_stamp, price FROM biddings WHERE auctions_id = %s;", (leilaoId, ))                  # biddings history
+
+        biddings = sql.fetchall()
+
+        mes = []
+        for row in messages:
+            mes.append({'userId': row[0], 'timestamp': row[1], 'message': row[2]})
+
+        bid = []
+        for row in biddings:
+            bid.append({'userId': row[0], 'timestamp': row[1], 'bidding': row[2]})
+
+    except psycopg2.Error as e:
+
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+    
+    return {'leilaoId': leilaoId, 'description': description, 'messages': mes, 'biddings': bid}
+
+
+
+"""
+GET -> get activity from the user
+"""
+@api.route("/dbproj/meusleiloes/<userId>", methods=['GET'])
+def getActivity(userId):
+    
+    token = request.args.get('token')
+    
+    if (userId is None or token is None):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+
+        # user as seller
+        sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE auctions.seller_id = %s and auctions.last_description_id = descriptions.id;", (userId, ))
+
+        idsS = sql.fetchall()
+
+        # user as bidder
+        sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE auctions.last_description_id = descriptions.id and auctions.id = (SELECT auctions_id FROM biddings WHERE users_id = %s);;", (userId, ))
+
+        idsB = sql.fetchall()
+
+        r = []
+
+        r.append('seller')
+        for row in idsS:
+            r.append({'leilaoId': row[0], 'description': row[1]})
+
+        r.append('bidder')
+        for row in idsB:
+            r.append({'leilaoId': row[0], 'description': row[1]})
+
+    except psycopg2.Error as e:
+
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+
+    return jsonify(r)
+
+
 ########## RUN SERVER #########
 
 api.run(port=8080)
