@@ -160,11 +160,16 @@ def getAuctions():
 
         auctions = sql.fetchall()
 
+        r = []
+
+        for row in auctions:
+            r.append({'leilaoId': row[0], 'description': row[1]})
+
     except psycopg2.Error as e:
         conn.rollback()
         return error(e.pgcode)
 
-    return {auctions:None}       #"leilaoId": auctions[0], "descricao":auctions[1]
+    return jsonify(r)
 
 
 """
