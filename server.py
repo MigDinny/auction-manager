@@ -1,4 +1,4 @@
-from flask import Flask, request, json
+from flask import Flask, request, json, jsonify
 import psycopg2
 
 ######### CONSTANTS & UTILS ########
@@ -24,7 +24,7 @@ conn = psycopg2.connect(user = "aulaspl",
         database = "projeto")
 
 sql = conn.cursor()
-conn.autocommit = True
+
 
 ########## ROUTES ########
 
@@ -58,6 +58,7 @@ def user():
         try:
             sql.execute("INSERT INTO users (username, email, password) VALUES(%s, %s, MD5(%s)) RETURNING id;", (username, email, password))
 
+            conn.commit()
         except psycopg2.Error as e:
             conn.rollback()
             return error(e.pgcode)
@@ -77,7 +78,8 @@ def user():
 
         try:
             sql.execute("UPDATE users SET token=MD5(random()::text) WHERE username=%s AND password=MD5(%s) RETURNING token;", (username, password))
-
+            conn.commit()
+            
             token = sql.fetchone()
 
             if (token is None):
@@ -99,7 +101,7 @@ POST -> create auction
 @api.route("/dbproj/leilao", methods=['POST'])
 def createAuction():
 
-    token = request.form.get('token')
+    token = request.args.get('token')
     article_id = request.form.get('artigoId')
     price = request.form.get('precoMinimo')
     title = request.form.get('titulo')
@@ -111,7 +113,7 @@ def createAuction():
 
     try:
         # auth 
-        sql.execute("SELECT id FROM users WHERE token=%s OR token=%s;", (token, token))
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
 
         id = sql.fetchone()
 
@@ -129,11 +131,71 @@ def createAuction():
 
         sql.execute("UPDATE descriptions SET auctions_id=%s WHERE id=%s;", (auction_id, description_id))
 
+        conn.commit()
+    
     except psycopg2.Error as e:
         conn.rollback()
-        return error(e.pgcode)
+        return error(e.pgcode, e.pgerror)
     
     return {'leilaoId': auction_id}
+
+
+"""
+GET -> query ON auctions
+"""
+@api.route("/dbproj/leiloes/<query>")
+def queryAuctions(query):
+
+    token = request.args.get('token')
+    allAuctions   = request.args.get('all')
+
+    if (query is None):
+        return error(1)
+    
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        # search for a match
+
+        if (query.isnumeric()):
+            if (allAuctions is not None):
+                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions WHERE (auctions.id = %s) AND (descriptions.id = auctions.last_description_id);", (query, ))
+
+            else:    
+                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions WHERE (auctions.id = %s) AND (descriptions.id = auctions.last_description_id) AND (auctions.end_date > now());", (query, ))
+            
+        else:
+            if (allAuctions is not None):
+                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions " +
+                            "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s);", ("%" + query + "%",))
+            else:
+                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions " +
+                            "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s) AND (auctions.end_date > now());", ("%" + query + "%",))
+
+        conn.commit()
+
+        fetch = sql.fetchall()
+
+        r = []
+
+        for row in fetch:
+            r.append({'leilaoId': row[0], 'artigoId': row[1], 'description': row[2]})
+
+        return jsonify(r)
+
+    except psycopg2.Error as e:
+
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+    
+
 
 ########## RUN SERVER #########
 
