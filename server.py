@@ -123,7 +123,7 @@ def createAuction():
         # insert description entry first
         sql.execute("INSERT INTO descriptions(text) VALUES (%s) RETURNING id;", (description,))
 
-        description_id = sql.fetchone()
+        description_id = sql.fetchone()[0]
 
         sql.execute("INSERT INTO auctions(article_id, title, price, end_date, last_description_id, seller_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;", (article_id, title, price, end_date, description_id, id))
 
@@ -139,6 +139,53 @@ def createAuction():
     
     return {'leilaoId': auction_id}
 
+
+"""
+PUT -> edit auction
+"""
+@api.route("/dbproj/leilao/<auction_id>", methods=['PUT'])
+def editAuction(auction_id):
+
+    token = request.args.get('token')
+    title = request.form.get('title')
+    description = request.form.get('description')
+
+    if ( (title is None and description is None) or not auction_id.isnumeric()):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        if (title is not None):
+            sql.execute("UPDATE auctions SET title = %s WHERE id = %s;", (title, auction_id))
+        
+        if (description is not None):
+            sql.execute("INSERT INTO descriptions(text, auctions_id) VALUES (%s, %s) RETURNING id;", (description, auction_id))
+
+            description_id = sql.fetchone()[0]
+
+            sql.execute("UPDATE auctions SET last_description_id = %s WHERE id = %s;", (description_id, auction_id))
+
+        sql.execute("SELECT auctions.id, article_id, title, price, end_date, highest_bidder_id, descriptions.text, seller_id" +
+                    " FROM auctions, descriptions" +
+                    " WHERE auctions.id = %s AND auctions.last_description_id = descriptions.id;", (auction_id,))
+
+        r = sql.fetchone()
+
+        conn.commit()
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+    
+    return {'leilaoId': r[0], 'articleId': r[1], 'title': r[2], 'price': r[3], 'end_date': r[4], 'highest_bidder_id': r[5], 'description': r[6], 'seller_id': r[7]} 
 
 """
 GET -> query ON auctions
@@ -182,20 +229,17 @@ def queryAuctions(query):
         conn.commit()
 
         fetch = sql.fetchall()
-
         r = []
-
         for row in fetch:
             r.append({'leilaoId': row[0], 'artigoId': row[1], 'description': row[2]})
 
-        return jsonify(r)
 
     except psycopg2.Error as e:
 
         conn.rollback()
         return error(e.pgcode, e.pgerror)
     
-
+    return jsonify(r)
 
 ########## RUN SERVER #########
 

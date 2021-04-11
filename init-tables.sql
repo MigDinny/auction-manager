@@ -5,7 +5,6 @@ CREATE TABLE auctions (
 	price		 INTEGER NOT NULL,
 	end_date		 TIMESTAMP NOT NULL,
 	highest_bidder_id	 INTEGER,
-	status		 BOOL NOT NULL DEFAULT TRUE,
 	last_description_id INTEGER NOT NULL,
 	seller_id		 INTEGER NOT NULL,
 	PRIMARY KEY(id)
