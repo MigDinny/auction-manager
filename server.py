@@ -139,7 +139,9 @@ def createAuction():
     
     return {'leilaoId': auction_id}
 
-
+"""
+GET -> get all on auction
+"""
 @api.route("/dbproj/leiloes", methods=['GET'])
 def getAuctions():
 

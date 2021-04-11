@@ -24,7 +24,7 @@ Decision-making (include bibliography):
 
 Tasks:
 	XM - convert existing request to accept token through params
-	R - list all ON auctions
+	XR - list all ON auctions
 	XM - query ON auctions | variant for ALL auctions
 	R - query auction details 
 	R - list all auctions a user has activity // GET dbproj/meusleiloes
