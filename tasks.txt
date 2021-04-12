@@ -26,8 +26,8 @@ Tasks:
 	XM - convert existing request to accept token through params
 	XR - list all ON auctions
 	XM - query ON auctions | variant for ALL auctions
-	R - query auction details 
-	R - list all auctions a user has activity // GET dbproj/meusleiloes
+	XR - query auction details 
+	XR - list all auctions a user has activity // GET dbproj/meusleiloes
 	R - bid on an auction // sends notification to previous bidder
 	XM - edit auction properties (description, title)
 	M - write message on an auction // delivers notification to all involving users

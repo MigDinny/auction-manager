@@ -146,6 +146,7 @@ GET -> get all on auction
 def getAuctions():
 
     token = request.args.get('token')
+    allAuctions = request.args.get('all')
 
     if (token is None):
         return error(1)
@@ -158,7 +159,10 @@ def getAuctions():
         if (id is None):
             return error(4)
         
-        sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE end_date >= now() and descriptions.id = auctions.last_description_id;")
+        if (allAuctions is None):
+            sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE end_date >= now() and descriptions.id = auctions.last_description_id;")
+        else:
+            sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE descriptions.id = auctions.last_description_id;")
 
         auctions = sql.fetchall()
 
@@ -166,6 +170,8 @@ def getAuctions():
 
         for row in auctions:
             r.append({'leilaoId': row[0], 'description': row[1]})
+
+        conn.commit()
 
     except psycopg2.Error as e:
         conn.rollback()
@@ -274,6 +280,102 @@ def queryAuctions(query):
         return error(e.pgcode, e.pgerror)
     
     return jsonify(r)
+
+
+"""
+GET -> get details from a auction
+"""
+@api.route("/dbproj/leilao/<leilaoId>", methods=['GET'])
+def getDetails(leilaoId):
+
+    token = request.args.get('token')
+    
+    if (leilaoId is None or token is None):
+        return error(1)
+    
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        sql.execute("SELECT descriptions.text, title, article_id, price, end_date, seller_id, highest_bidder_id FROM auctions, descriptions WHERE auctions.id = %s and auctions.last_description_id = descriptions.id;", (leilaoId, ))       # current description
+
+        r = sql.fetchone()
+
+        sql.execute("SELECT users_id, time_stamp, text FROM messages WHERE auctions_id = %s;", (leilaoId, ))                   # messages history
+
+        messages = sql.fetchall()
+        
+        sql.execute("SELECT users_id, time_stamp, price FROM biddings WHERE auctions_id = %s;", (leilaoId, ))                  # biddings history
+
+        biddings = sql.fetchall()
+
+        mes = []
+        for row in messages:
+            mes.append({'userId': row[0], 'timestamp': row[1], 'message': row[2]})
+
+        bid = []
+        for row in biddings:
+            bid.append({'userId': row[0], 'timestamp': row[1], 'bidding': row[2]})
+
+        conn.commit()
+
+    except psycopg2.Error as e:
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+    
+    return {'leilaoId': leilaoId, 'title': r[1], 'article_id': r[2], 'price': r[3], 'end_date': r[4], 'description': r[0], 'seller_id': r[5], 'highest_seller_id': r[6], 'messages': mes, 'biddings': bid}
+
+
+
+"""
+GET -> get activity from the user
+"""
+@api.route("/dbproj/meusleiloes", methods=['GET'])
+def getActivity():
+    
+    token = request.args.get('token')
+    
+    if (token is None):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+
+        # user as seller and bidder
+        sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE auctions.seller_id = %s and auctions.last_description_id = descriptions.id " + 
+                    "UNION " + 
+                    "SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE auctions.last_description_id = descriptions.id and auctions.id IN (SELECT auctions_id FROM biddings WHERE users_id = %s);", (id, id))
+
+        idsB = sql.fetchall()
+
+        r = []
+
+        for row in idsB:
+            r.append({'leilaoId': row[0], 'description': row[1]})
+
+        conn.commit()
+
+    except psycopg2.Error as e:
+
+        conn.rollback()
+        return error(e.pgcode, e.pgerror)
+
+    return jsonify(r)
+
 
 ########## RUN SERVER #########
 
