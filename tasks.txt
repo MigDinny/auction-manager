@@ -28,10 +28,10 @@ Tasks:
 	XM - query ON auctions | variant for ALL auctions
 	XR - query auction details 
 	XR - list all auctions a user has activity // GET dbproj/meusleiloes
-	R - bid on an auction // sends notification to previous bidder
+	XR - bid on an auction // sends notification to previous bidder
 	XM - edit auction properties (description, title)
 	M - write message on an auction // delivers notification to all involving users
-	R - list notifications
+	XR - list notifications
 	- "término do leilao à hora" ????? check question
 
 
