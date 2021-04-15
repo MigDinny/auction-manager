@@ -196,7 +196,7 @@ def editAuction(auction_id):
     try:
 
         # auth 
-        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+        sql.execute("SELECT users.id FROM users, auctions WHERE users.token=%s AND auctions.seller_id = users.id AND auctions.id = %s;", (token, auction_id))
 
         id = sql.fetchone()
 
