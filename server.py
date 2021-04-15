@@ -454,7 +454,7 @@ def getNotifications():
 """
 PUT -> bid on a auction
 """
-@api.route("/dbproj/licitar/<auctionId>/<value>", methods=['PUT'])
+@api.route("/dbproj/licitar/<auctionId>/<value>")
 def bidAuction(auctionId, value):
     token = request.args.get('token')
     
@@ -486,17 +486,17 @@ def bidAuction(auctionId, value):
             return error(6)
 
         # create bid and update auction
-        sql.execute("INSERT INTO biddings(price, auctions_id, users_id) VALUES(%s, %s, %s);", (value,auctionId,id))
+        sql.execute("INSERT INTO biddings(price, auctions_id, users_id) VALUES(%s, %s, %s);", (value, auctionId, id))
     
-        sql.execute("UPDATE auctions SET highest_bidder_id = %s, price = %s WHERE id = %s;", (id,value,auctionId))
+        sql.execute("UPDATE auctions SET highest_bidder_id = %s, price = %s WHERE id = %s;", (id, value, auctionId))
         
         # notification text
         text = "New bidding"        # change text
         
         sql.execute("INSERT INTO notifications(text, users_id) " +
-                    "(SELECT DISTINCT %s, biddings.users_id FROM biddings WHERE biddings.auctions_id = %s" +
+                    "(SELECT DISTINCT %s, biddings.users_id FROM biddings WHERE biddings.auctions_id = %s AND biddings.users_id<>%s" +
                     " UNION " +
-                    "SELECT %s, auctions.seller_id FROM auctions WHERE auctions.id = %s);", (text,auctionId,text,auctionId))
+                    "SELECT %s, auctions.seller_id FROM auctions WHERE auctions.id = %s);", (text, auctionId, id, text, auctionId))
 
         conn.commit()
 
