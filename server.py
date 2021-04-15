@@ -9,6 +9,8 @@ import psycopg2
 # 2: internal error
 # 3: auth - access denied
 # 4: token not valid
+# 5: auction ended or invalid auctionId
+# 6: price lower than current price
 # 23505: constraint UNIQUE violation
 def error(no, text="N/A"):
     conn.rollback()
@@ -141,7 +143,7 @@ def createAuction():
 """
 GET -> get all on auction
 """
-@api.route("/dbproj/leiloes", methods=['GET'])
+@api.route("/dbproj/leiloes")
 def getAuctions():
 
     token = request.args.get('token')
@@ -280,7 +282,7 @@ def queryAuctions(query):
 """
 GET -> get details from a auction
 """
-@api.route("/dbproj/leilao/<leilaoId>", methods=['GET'])
+@api.route("/dbproj/leilao/<leilaoId>")
 def getDetails(leilaoId):
 
     token = request.args.get('token')
@@ -330,7 +332,7 @@ def getDetails(leilaoId):
 """
 GET -> get activity from the user
 """
-@api.route("/dbproj/meusleiloes", methods=['GET'])
+@api.route("/dbproj/meusleiloes")
 def getActivity():
     
     token = request.args.get('token')
@@ -415,6 +417,93 @@ def sendMessage(auctionID):
 
     return {'status': 'success'}
 
+"""
+GET -> get list of notifications
+"""
+@api.route("/dbproj/notificacoes")
+def getNotifications():
+    token = request.args.get('token')
+    
+    if (token is None):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        sql.execute("SELECT text, time_stamp FROM notifications WHERE users_id = %s;", (id,))
+
+        notifs = sql.fetchall()
+
+        r = []
+        
+        for notif in notifs:
+            r.append({'text': notif[0], 'time_stamp': notif[1]})
+
+    except psycopg2.Error as e:
+        return error(e.pgcode, e.pgerror)
+
+    return jsonify(r)
+
+"""
+PUT -> bid on a auction
+"""
+@api.route("/dbproj/licitar/<auctionId>/<value>", methods=['PUT'])
+def bidAuction(auctionId, value):
+    token = request.args.get('token')
+    
+    if (token is None or auctionId is None or value is None):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        sql.execute("SELECT id FROM auctions WHERE id = %s and now() < end_date;", (auctionId,))        # check if auction is still on
+
+        status = sql.fetchone()
+
+        if (status is None):
+            return error(5)
+
+        sql.execute("SELECT price FROM auctions WHERE id = %s and price < %s;", (auctionId, value,))
+
+        current_price = sql.fetchone()
+
+        if (current_price is None):
+            return error(6)
+
+        # create bid and update auction
+        sql.execute("INSERT INTO biddings(price, auctions_id, users_id) VALUES(%s, %s, %s);", (value,auctionId,id))
+    
+        sql.execute("UPDATE auctions SET highest_bidder_id = %s, price = %s WHERE id = %s;", (id,value,auctionId))
+        
+        # notification text
+        text = "New bidding"        # change text
+        
+        sql.execute("INSERT INTO notifications(text, users_id) " +
+                    "(SELECT DISTINCT %s, biddings.users_id FROM biddings WHERE biddings.auctions_id = %s" +
+                    " UNION " +
+                    "SELECT %s, auctions.seller_id FROM auctions WHERE auctions.id = %s);", (text,auctionId,text,auctionId))
+
+        conn.commit()
+
+    except psycopg2.Error as e:
+        return error(e.pgcode, e.pgerror)
+
+    return {'status': 'success'}
 
 ########## RUN SERVER #########
 
