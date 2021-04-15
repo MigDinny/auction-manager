@@ -377,6 +377,7 @@ def sendMessage(auctionID):
 
     token = request.args.get('token')
     message = request.form.get('text')
+    notifText = "[MESSAGE] New message posted on auction #" + auctionID + "\n\n" + "'" + message + "'"
     
     if (token is None or auctionID is None or message is None):
         return error(1)
@@ -392,7 +393,7 @@ def sendMessage(auctionID):
             return error(4)
 
         # check if auction ID is valid AND online
-        sql.execute("SELECT id FROM auctions WHERE id = %s AND end_date > NOW();", (auctionID))
+        sql.execute("SELECT id FROM auctions WHERE id = %s AND end_date > NOW();", (auctionID,))
 
         auction_id_temp = sql.fetchone()
 
@@ -403,7 +404,7 @@ def sendMessage(auctionID):
                     "( SELECT DISTINCT %s, messages.users_id FROM messages WHERE messages.auctions_id=%s AND messages.users_id<>%s" + 
                     " UNION " + 
                     "SELECT %s, auctions.seller_id FROM auctions WHERE auctions.id = %s AND auctions.seller_id<>%s);",
-                    (message, auctionID, id, message, auctionID, id))
+                    (notifText, auctionID, id, notifText, auctionID, id))
 
         sql.execute("INSERT INTO messages(text, auctions_id, users_id) VALUES (%s, %s, %s);", (message, auctionID, id))
 
