@@ -11,6 +11,7 @@ import psycopg2
 # 4: token not valid
 # 23505: constraint UNIQUE violation
 def error(no, text="N/A"):
+    conn.rollback()
     return {'error': no, 'text': text}
 
 
@@ -86,7 +87,6 @@ def user():
                 return error(3)
             
         except psycopg2.Error as e:
-            conn.rollback()
             return error(e.pgcode, e.pgerror)
 
         return {'authToken': token[0]}
@@ -134,7 +134,6 @@ def createAuction():
         conn.commit()
     
     except psycopg2.Error as e:
-        conn.rollback()
         return error(e.pgcode, e.pgerror)
     
     return {'leilaoId': auction_id}
@@ -174,7 +173,6 @@ def getAuctions():
         conn.commit()
 
     except psycopg2.Error as e:
-        conn.rollback()
         return error(e.pgcode)
 
     return jsonify(r)
@@ -222,7 +220,6 @@ def editAuction(auction_id):
         conn.commit()
 
     except psycopg2.Error as e:
-        conn.rollback()
         return error(e.pgcode, e.pgerror)
     
     return {'leilaoId': r[0], 'articleId': r[1], 'title': r[2], 'price': r[3], 'end_date': r[4], 'highest_bidder_id': r[5], 'description': r[6], 'seller_id': r[7]} 
@@ -275,8 +272,6 @@ def queryAuctions(query):
 
 
     except psycopg2.Error as e:
-
-        conn.rollback()
         return error(e.pgcode, e.pgerror)
     
     return jsonify(r)
@@ -326,7 +321,6 @@ def getDetails(leilaoId):
         conn.commit()
 
     except psycopg2.Error as e:
-        conn.rollback()
         return error(e.pgcode, e.pgerror)
     
     return {'leilaoId': leilaoId, 'title': r[1], 'article_id': r[2], 'price': r[3], 'end_date': r[4], 'description': r[0], 'seller_id': r[5], 'highest_seller_id': r[6], 'messages': mes, 'biddings': bid}
@@ -370,11 +364,55 @@ def getActivity():
         conn.commit()
 
     except psycopg2.Error as e:
-
-        conn.rollback()
         return error(e.pgcode, e.pgerror)
 
     return jsonify(r)
+
+
+"""
+POST -> send message to auction and propagate notifications
+"""
+@api.route("/dbproj/messages/<auctionID>", methods=['POST'])
+def sendMessage(auctionID):
+
+    token = request.args.get('token')
+    message = request.form.get('text')
+    
+    if (token is None or auctionID is None or message is None):
+        return error(1)
+
+    try:
+
+        # auth 
+        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
+
+        id = sql.fetchone()
+
+        if (id is None):
+            return error(4)
+
+        # check if auction ID is valid AND online
+        sql.execute("SELECT id FROM auctions WHERE id = %s AND end_date > NOW();", (auctionID))
+
+        auction_id_temp = sql.fetchone()
+
+        if (auction_id_temp is None):
+            return error(5)
+
+        sql.execute("INSERT INTO notifications(text, users_id) " +
+                    "( SELECT DISTINCT %s, messages.users_id FROM messages WHERE messages.auctions_id=%s AND messages.users_id<>%s" + 
+                    " UNION " + 
+                    "SELECT %s, auctions.seller_id FROM auctions WHERE auctions.id = %s AND auctions.seller_id<>%s);",
+                    (message, auctionID, id, message, auctionID, id))
+
+        sql.execute("INSERT INTO messages(text, auctions_id, users_id) VALUES (%s, %s, %s);", (message, auctionID, id))
+
+        conn.commit()
+
+    except psycopg2.Error as e:
+        return error(e.pgcode, e.pgerror)
+
+    return {'status': 'success'}
 
 
 ########## RUN SERVER #########

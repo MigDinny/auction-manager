@@ -21,6 +21,7 @@ Decision-making (include bibliography):
 		https://stackoverflow.com/questions/19212980/custom-routing-in-flask-app
 		https://hackersandslackers.com/flask-routes/
 
+	- errors outputted by SQL --> we know its not SAFE but it's easier
 
 Tasks:
 	XM - convert existing request to accept token through params
@@ -30,8 +31,8 @@ Tasks:
 	XR - list all auctions a user has activity // GET dbproj/meusleiloes
 	R - bid on an auction // sends notification to previous bidder
 	XM - edit auction properties (description, title)
-	M - write message on an auction // delivers notification to all involving users
+	XM - write message on an auction // delivers notification to all involving users
 	R - list notifications
 	- "término do leilao à hora" ????? check question
-
+	- check all functions' behaviour about end_date
 

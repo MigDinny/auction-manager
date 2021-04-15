@@ -22,7 +22,7 @@ CREATE TABLE users (
 CREATE TABLE notifications (
 	id	 SERIAL,
 	text	 VARCHAR(512),
-	time_stamp TIMESTAMP NOT NULL,
+	time_stamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	users_id	 INTEGER NOT NULL,
 	PRIMARY KEY(id)
 );
@@ -30,7 +30,7 @@ CREATE TABLE notifications (
 CREATE TABLE messages (
 	id		 SERIAL,
 	text	 CHAR(255),
-	time_stamp	 TIMESTAMP NOT NULL,
+	time_stamp	 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	auctions_id INTEGER NOT NULL,
 	users_id	 INTEGER NOT NULL,
 	PRIMARY KEY(id)
@@ -39,7 +39,7 @@ CREATE TABLE messages (
 CREATE TABLE biddings (
 	id		 SERIAL,
 	price	 INTEGER NOT NULL,
-	time_stamp	 TIMESTAMP NOT NULL,
+	time_stamp	 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	auctions_id INTEGER NOT NULL,
 	users_id	 INTEGER NOT NULL,
 	PRIMARY KEY(id)
