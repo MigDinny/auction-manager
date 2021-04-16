@@ -143,7 +143,9 @@ def createAuction():
     return {'leilaoId': auction_id}
 
 """
-GET -> get all on auction
+GET -> get all/ON auction
+    params: all (if received returns all auctions)
+    returns: auction ids, descriptions
 """
 @api.route("/dbproj/leiloes")
 def getAuctions():
@@ -153,7 +155,7 @@ def getAuctions():
     try:
         
         if (allAuctions is None):
-            sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE end_date >= now() and descriptions.id = auctions.last_description_id;")
+            sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE end_date >= NOW() and descriptions.id = auctions.last_description_id;")
         else:
             sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE descriptions.id = auctions.last_description_id;")
 
@@ -163,7 +165,7 @@ def getAuctions():
         r = []
 
         for row in auctions:
-            r.append({'leilaoId': row[0], 'description': row[1]})
+            r.append({'leilaoId': row[0], 'descricao': row[1]})
 
         
 
@@ -175,6 +177,11 @@ def getAuctions():
 
 """
 PUT -> edit auction
+    params: token
+    body-params: title, description
+    route: auction_id
+    returns: auction id, article id, title, price, end date, highest bidder id, description, seller id
+    error: if access is denied
 """
 @api.route("/dbproj/leilao/<auction_id>", methods=['PUT'])
 def editAuction(auction_id):
@@ -220,7 +227,10 @@ def editAuction(auction_id):
     return {'leilaoId': r[0], 'articleId': r[1], 'title': r[2], 'price': r[3], 'end_date': r[4], 'highest_bidder_id': r[5], 'description': r[6], 'seller_id': r[7]} 
 
 """
-GET -> query ON auctions
+GET -> query all/ON auctions
+    params:  all (if received returns output off all auctions)
+    route: query
+    returns: auction id, article id, description
 """
 @api.route("/dbproj/leiloes/<query>")
 def queryAuctions(query):
@@ -238,7 +248,7 @@ def queryAuctions(query):
                 sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions WHERE (auctions.id = %s) AND (descriptions.id = auctions.last_description_id);", (query, ))
 
             else:    
-                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions WHERE (auctions.id = %s) AND (descriptions.id = auctions.last_description_id) AND (auctions.end_date > now());", (query, ))
+                sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions WHERE (auctions.id = %s) AND (descriptions.id = auctions.last_description_id) AND (auctions.end_date > NOW());", (query, ))
             
         else:
             if (allAuctions is not None):
@@ -246,7 +256,7 @@ def queryAuctions(query):
                             "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s);", ("%" + query + "%",))
             else:
                 sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions " +
-                            "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s) AND (auctions.end_date > now());", ("%" + query + "%",))
+                            "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s) AND (auctions.end_date > NOW());", ("%" + query + "%",))
 
         fetch = sql.fetchall()
 
@@ -254,7 +264,7 @@ def queryAuctions(query):
 
         r = []
         for row in fetch:
-            r.append({'leilaoId': row[0], 'artigoId': row[1], 'description': row[2]})
+            r.append({'leilaoId': row[0], 'artigoId': row[1], 'descricao': row[2]})
 
 
     except psycopg2.Error as e:
@@ -264,7 +274,10 @@ def queryAuctions(query):
 
 
 """
-GET -> get details from a auction
+GET -> get details from an auction
+    params: token
+    route: auction_id
+    returns: auction id, title, article id, price, end date, description, seller id, highest bidder id, messages, biddings
 """
 @api.route("/dbproj/leilao/<leilaoId>")
 def getDetails(leilaoId):
@@ -305,6 +318,9 @@ def getDetails(leilaoId):
 
 """
 GET -> get activity from the user
+    params: token
+    returns: auction id, description
+    error: if access is denied
 """
 @api.route("/dbproj/meusleiloes")
 def getActivity():
@@ -347,6 +363,11 @@ def getActivity():
 
 """
 POST -> send message to auction and propagate notifications
+    params: token
+    route: auction_id
+    body-params: text
+    returns: {'status': 'success'}
+    error: if access is denied, auction id is invalid
 """
 @api.route("/dbproj/messages/<auctionID>", methods=['POST'])
 def sendMessage(auctionID):
@@ -393,6 +414,9 @@ def sendMessage(auctionID):
 
 """
 GET -> get list of notifications
+    params: token
+    returns: text, time stamp
+    error: if access is denied
 """
 @api.route("/dbproj/notificacoes")
 def getNotifications():
@@ -428,7 +452,11 @@ def getNotifications():
     return jsonify(r)
 
 """
-GET -> bid on a auction
+GET -> bid on an auction, notify seller and users in that auction
+    params: token
+    route: auction_id, value
+    returns: {'status': 'success'}
+    error: if access is denied, auction id is invalid, value is invalid
 """
 @api.route("/dbproj/licitar/<auctionId>/<value>")
 def bidAuction(auctionId, value):
@@ -447,7 +475,7 @@ def bidAuction(auctionId, value):
         if (id is None):
             return error(4)
 
-        sql.execute("SELECT id FROM auctions WHERE id = %s and now() < end_date;", (auctionId,))        # check if auction is still on
+        sql.execute("SELECT id FROM auctions WHERE id = %s and NOW() < end_date;", (auctionId,))        # check if auction is still on
 
         status = sql.fetchone()
 
