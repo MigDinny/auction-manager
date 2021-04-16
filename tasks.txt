@@ -24,15 +24,42 @@ Decision-making (include bibliography):
 	- errors outputted by SQL --> we know its not SAFE but it's easier
 
 Tasks:
-	XM - convert existing request to accept token through params
+	XM - login
+	XM - signup
+	XM - create auction
 	XR - list all ON auctions
 	XM - query ON auctions | variant for ALL auctions
 	XR - query auction details 
 	XR - list all auctions a user has activity // GET dbproj/meusleiloes
-	R - bid on an auction // sends notification to previous bidder
+	XR - bid on an auction // sends notification to previous bidder
 	XM - edit auction properties (description, title)
 	XM - write message on an auction // delivers notification to all involving users
-	R - list notifications
-	- "término do leilao à hora" ????? check question
-	- check all functions' behaviour about end_date
+	XR - list notifications
+	X - check all functions' behaviour about end_date
+	X - check auths
+	X - check transactions
+	- final docs on each function
 
+Paper:
+	- user manual with REST API docs
+		-- think about dividing endpoints by category
+		-- signal with PUBLIC or PRIVATE (needs auth)
+	
+	- installation manual
+		-- basically, README
+	
+	- final ER and Relational Data Models
+		-- grab old json and update it (and .sql)
+
+	- development plan
+		-- above tasks & think about others not specified
+	
+	- final notes on decision-making (above)
+
+	- bibliography
+
+	- SOURCE CODE dont forget
+
+Presentation:
+
+	- 10 min short powerpoint

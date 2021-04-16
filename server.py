@@ -35,16 +35,16 @@ api = Flask(__name__)
 
 """
 POST -> signup
-    params: username, password, email
+    params: none
+    body-params: username, password, email
     returns: userid
     error: if user/email already exists 
-    transaction: not needed, operation is atomic
     
 PUT -> login
-    params: username, password
+    params: none
+    body-params: username, password
     returns: auth token
     error: if access is denied
-    transaction: not needed, operation is atomic
 """
 @api.route("/dbproj/user", methods=['PUT', 'POST'])
 def user():
@@ -63,7 +63,6 @@ def user():
 
             conn.commit()
         except psycopg2.Error as e:
-            conn.rollback()
             return error(e.pgcode)
         
         for row in sql:
@@ -98,7 +97,10 @@ def user():
         
 """
 POST -> create auction
-    params: token, article_id, price, title, description, end_timestamp
+    params: token
+    body-params: article_id, price, title, description, end_timestamp
+    returns: auction ids
+    error: if access is denied
 """
 @api.route("/dbproj/leilao", methods=['POST'])
 def createAuction():
@@ -146,19 +148,9 @@ GET -> get all on auction
 @api.route("/dbproj/leiloes")
 def getAuctions():
 
-    token = request.args.get('token')
     allAuctions = request.args.get('all')
 
-    if (token is None):
-        return error(1)
     try:
-        # auth 
-        sql.execute("SELECT id FROM users WHERE token = %s;", (token,))
-
-        id = sql.fetchone()
-
-        if (id is None):
-            return error(4)
         
         if (allAuctions is None):
             sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE end_date >= now() and descriptions.id = auctions.last_description_id;")
@@ -166,13 +158,14 @@ def getAuctions():
             sql.execute("SELECT auctions.id, descriptions.text FROM auctions, descriptions WHERE descriptions.id = auctions.last_description_id;")
 
         auctions = sql.fetchall()
-
+        conn.commit()
+        
         r = []
 
         for row in auctions:
             r.append({'leilaoId': row[0], 'description': row[1]})
 
-        conn.commit()
+        
 
     except psycopg2.Error as e:
         return error(e.pgcode)
@@ -190,13 +183,13 @@ def editAuction(auction_id):
     title = request.form.get('title')
     description = request.form.get('description')
 
-    if ( (title is None and description is None) or not auction_id.isnumeric()):
+    if (title is None and description is None or auction_id is None):
         return error(1)
 
     try:
 
         # auth 
-        sql.execute("SELECT users.id FROM users, auctions WHERE users.token=%s AND auctions.seller_id = users.id AND auctions.id = %s;", (token, auction_id))
+        sql.execute("SELECT users.id FROM users, auctions WHERE users.token=%s AND auctions.seller_id = users.id AND auctions.id = %s AND auctions.end_date > NOW();", (token, auction_id))
 
         id = sql.fetchone()
 
@@ -232,22 +225,12 @@ GET -> query ON auctions
 @api.route("/dbproj/leiloes/<query>")
 def queryAuctions(query):
 
-    token = request.args.get('token')
     allAuctions   = request.args.get('all')
 
     if (query is None):
         return error(1)
     
     try:
-
-        # auth 
-        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
-
-        id = sql.fetchone()
-
-        if (id is None):
-            return error(4)
-
         # search for a match
 
         if (query.isnumeric()):
@@ -265,9 +248,10 @@ def queryAuctions(query):
                 sql.execute("SELECT auctions.id, auctions.article_id, descriptions.text FROM auctions, descriptions " +
                             "WHERE (descriptions.id=auctions.last_description_id) AND (descriptions.text LIKE %s) AND (auctions.end_date > now());", ("%" + query + "%",))
 
+        fetch = sql.fetchall()
+
         conn.commit()
 
-        fetch = sql.fetchall()
         r = []
         for row in fetch:
             r.append({'leilaoId': row[0], 'artigoId': row[1], 'description': row[2]})
@@ -284,34 +268,26 @@ GET -> get details from a auction
 """
 @api.route("/dbproj/leilao/<leilaoId>")
 def getDetails(leilaoId):
-
-    token = request.args.get('token')
     
-    if (leilaoId is None or token is None):
+    if (leilaoId is None):
         return error(1)
     
     try:
-
-        # auth 
-        sql.execute("SELECT id FROM users WHERE token=%s;", (token,))
-
-        id = sql.fetchone()
-
-        if (id is None):
-            return error(4)
 
         sql.execute("SELECT descriptions.text, title, article_id, price, end_date, seller_id, highest_bidder_id FROM auctions, descriptions WHERE auctions.id = %s and auctions.last_description_id = descriptions.id;", (leilaoId, ))       # current description
 
         r = sql.fetchone()
 
-        sql.execute("SELECT users_id, time_stamp, text FROM messages WHERE auctions_id = %s;", (leilaoId, ))                   # messages history
+        sql.execute("SELECT users_id, time_stamp, text FROM messages WHERE auctions_id = %s ORDER BY id;", (leilaoId, ))                   # messages history
 
         messages = sql.fetchall()
         
-        sql.execute("SELECT users_id, time_stamp, price FROM biddings WHERE auctions_id = %s;", (leilaoId, ))                  # biddings history
+        sql.execute("SELECT users_id, time_stamp, price FROM biddings WHERE auctions_id = %s ORDER BY id;", (leilaoId, ))                  # biddings history
 
         biddings = sql.fetchall()
-
+        
+        conn.commit()
+        
         mes = []
         for row in messages:
             mes.append({'userId': row[0], 'timestamp': row[1], 'message': row[2]})
@@ -319,8 +295,6 @@ def getDetails(leilaoId):
         bid = []
         for row in biddings:
             bid.append({'userId': row[0], 'timestamp': row[1], 'bidding': row[2]})
-
-        conn.commit()
 
     except psycopg2.Error as e:
         return error(e.pgcode, e.pgerror)
@@ -358,12 +332,12 @@ def getActivity():
 
         idsB = sql.fetchall()
 
+        conn.commit()
+
         r = []
 
         for row in idsB:
             r.append({'leilaoId': row[0], 'description': row[1]})
-
-        conn.commit()
 
     except psycopg2.Error as e:
         return error(e.pgcode, e.pgerror)
@@ -437,9 +411,11 @@ def getNotifications():
         if (id is None):
             return error(4)
 
-        sql.execute("SELECT text, time_stamp FROM notifications WHERE users_id = %s;", (id,))
+        sql.execute("SELECT text, time_stamp FROM notifications WHERE users_id = %s ORDER BY id;", (id,))
 
         notifs = sql.fetchall()
+
+        conn.commit()
 
         r = []
         
@@ -452,7 +428,7 @@ def getNotifications():
     return jsonify(r)
 
 """
-PUT -> bid on a auction
+GET -> bid on a auction
 """
 @api.route("/dbproj/licitar/<auctionId>/<value>")
 def bidAuction(auctionId, value):
