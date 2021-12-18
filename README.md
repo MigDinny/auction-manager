@@ -1,6 +1,8 @@
 # Auction Manager
 
-Databases Project, 4th Semester Computer Science - UC.
+Databases Project
+
+This project is not meant to be contributed to or used. 
 
 Auction Manager with a RESTful API.
 
